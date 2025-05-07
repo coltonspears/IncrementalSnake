@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serpent Scale - A Roguelike Adventure</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: #0d1117; /* GitHub dark default */
+            color: #c9d1d9; /* GitHub text */
+            overflow: hidden;
+        }
+
+        #splash-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around; /* Distribute space */
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #161b22, #0d1117 70%), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><path d="M20 20 L80 20 L80 80 L20 80 Z" fill="none" stroke="%2330363d" stroke-width="0.5"/><circle cx="50" cy="50" r="10" fill="%232ea043" opacity="0.1"/></svg>'); /* Subtle grid + accent */
+            background-size: auto, 50px 50px;
+            text-align: center;
+            padding: 30px;
+            box-sizing: border-box;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 100;
+            transition: opacity 0.5s ease-out; /* For fade out */
+        }
+        .splash-hidden { opacity: 0; pointer-events: none; }
+
+        #splash-screen .title-area {
+            margin-bottom: 20px;
+        }
+        #splash-screen h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: calc(2.5em + 2vw);
+            margin-bottom: 10px;
+            color: #58a6ff; /* GitHub blue */
+            text-shadow: 0 0 10px rgba(88, 166, 255, 0.5), 0 0 20px rgba(88, 166, 255, 0.3);
+        }
+        #splash-screen .subtitle {
+            font-size: calc(1em + 0.5vw);
+            margin-bottom: 30px;
+            color: #8b949e; /* GitHub secondary text */
+            max-width: 600px;
+        }
+
+        #splash-screen .content-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        #splash-screen h3.upgrades-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: calc(1.2em + 0.5vw);
+            color: #58a6ff;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #30363d; /* GitHub border */
+            padding-bottom: 10px;
+            width: 80%;
+            max-width: 700px;
+        }
+
+        #splash-upgrades-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            min-height:400px;
+            max-width: 90%; /* Responsive width */
+            width: 1000px; /* Max width for upgrades area */
+            max-height: 40vh; /* Limit height */
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            background-color: rgba(13, 17, 23, 0.8); /* Slightly transparent */
+            margin-bottom: 30px;
+            scrollbar-width: thin;
+            scrollbar-color: #58a6ff #161b22;
+        }
+        #splash-upgrades-container::-webkit-scrollbar { width: 8px; }
+        #splash-upgrades-container::-webkit-scrollbar-track { background: #161b22; border-radius: 4px; }
+        #splash-upgrades-container::-webkit-scrollbar-thumb { background-color: #58a6ff; border-radius: 4px; border: 2px solid #161b22; }
+
+
+        #splash-screen .start-button {
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: calc(1.2em + 0.5vw);
+            background-color: #2ea043; /* GitHub green */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 15px rgba(46, 160, 67, 0.3);
+        }
+        #splash-screen .start-button:hover {
+            background-color: #268839;
+            transform: translateY(-2px);
+        }
+        #splash-screen .start-button:active { transform: translateY(0px); }
+
+
+        #main-content {
+            display: none;
+            flex-direction: row;
+            width: 100vw; /* Full viewport width */
+            height: 100vh; /* Full viewport height */
+            border: none; /* Remove border if full screen */
+            border-radius: 0;
+            overflow: hidden;
+            background-color: #0d1117;
+        }
+
+        #game-container {
+            position: relative;
+            flex-grow: 1;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #010409; /* Even darker for game, almost black */
+        }
+        canvas {
+            display: block;
+            /* Max width/height set by JS to maintain aspect ratio */
+            border: none; /* Remove border from canvas itself */
+        }
+
+        #ui-panel {
+            width: 300px; /* Fixed width for UI panel */
+            min-width: 280px;
+            padding: 20px;
+            background-color: #161b22; /* GitHub darker dim */
+            border-left: 1px solid #30363d;
+            overflow-y: auto;
+            box-sizing: border-box;
+            height: 100%;
+            color: #c9d1d9;
+        }
+        /* ... (rest of UI panel, card styles from previous version - mostly okay) ... */
+        .ui-section { margin-bottom: 25px; }
+        .ui-section h3 {
+            margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 8px;
+            color: #58a6ff; font-size: 1.1em; font-family: 'Orbitron', sans-serif;
+        }
+        .ui-section h4 { color: #8b949e; font-size: 0.9em; margin-bottom: 10px;}
+
+        /* Card Styling (Minor tweaks for consistency) */
+        .upgrade-card {
+            background-color: #21262d; /* GitHub dark card */
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            width: 220px; /* Slightly wider cards */
+            min-height: 160px; /* Ensure consistent height */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s;
+        }
+        .upgrade-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+
+        .card-header { display: flex; align-items: center; margin-bottom: 8px; }
+        .card-icon { font-size: 1.6em; margin-right: 10px; width: 32px; text-align: center; }
+        .card-title { font-size: 1em; font-weight: bold; color: #c9d1d9;}
+        .card-level { font-size: 0.75em; color: #8b949e; margin-left: auto; background: #30363d; padding: 2px 5px; border-radius: 3px;}
+
+        .card-content p { margin: 4px 0; font-size: 0.85em; color: #8b949e; }
+        .card-effect strong { color: #58a6ff; }
+        .card-cost { font-style: normal; color: #8b949e; font-size: 0.8em; margin-top: 5px;}
+
+        .upgrade-card button {
+            background-color: #238636; /* GitHub green darker */
+            color: white; padding: 8px 10px; margin-top: 10px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 0.9em; width: 100%; font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .upgrade-card button:hover:not(:disabled) { background-color: #2ea043; }
+        .upgrade-card button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
+
+        /* Rarity Borders (using left border as an accent) */
+        .rarity-common { border-left: 4px solid #8b949e; } /* gray */
+        .rarity-rare   { border-left: 4px solid #58a6ff; } /* blue */
+        .rarity-epic   { border-left: 4px solid #a371f7; } /* purple */
+        .rarity-legendary { border-left: 4px solid #db6d28; } /* orange - GitHub's "Done" issue color */
+
+        .rarity-common .card-icon { color: #8b949e; }
+        .rarity-rare .card-icon   { color: #58a6ff; }
+        .rarity-epic .card-icon   { color: #a371f7; }
+        .rarity-legendary .card-icon { color: #db6d28; }
+
+        .stat { margin-bottom: 8px; font-size: 0.95em; }
+        .stat span { font-weight: bold; color: #79c0ff; }
+
+        #message-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(13, 17, 23, 0.9); /* Darker, more opaque */
+            color: white; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; z-index: 10;
+        }
+        #message-overlay h2 { font-size: 2.8em; margin-bottom: 15px; color: #f85149; /* GitHub red for game over */ font-family: 'Orbitron', sans-serif;}
+        #message-overlay p { font-size: 1.3em; margin-bottom: 10px; line-height: 1.5; color: #c9d1d9;}
+        #message-overlay button {
+            padding: 12px 25px; font-size: 1.1em; margin-top: 25px;
+            background-color: #238636; color: white; border: none; border-radius: 6px; cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+        }
+        #message-overlay button:hover { background-color: #2ea043; }
+        #main-content.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="splash-screen">
+        <div class="title-area">
+            <h1>Serpent Scale</h1>
+            <p class="subtitle">Grow, Evolve, Dominate. A Roguelike Snake Adventure.</p>
+        </div>
+        <div class="content-area">
+            <h3 class="upgrades-title">Permanent Enhancements</h3>
+            <div id="splash-upgrades-container">
+                <!-- Splash screen upgrade cards -->
+            </div>
+            <button id="splash-start-button" class="start-button">Begin Descent</button>
+        </div>
+    </div>
+
+    <div id="main-content" class="hidden"> <!-- Start hidden -->
+        <div id="game-container">
+            <div id="message-overlay">
+                <h2 id="message-title">Game Over</h2>
+                <p id="message-text">Your score: 0</p>
+                <p id="message-subtext">Essence this run: 0</p>
+                <button id="message-action-button">Start Game</button>
+            </div>
+        </div>
+        <div id="ui-panel">
+            <div class="ui-section" id="stats-section">
+                <h3>Run Stats</h3>
+                <div class="stat">Size Level: <span id="stat-size-level">0</span></div>
+                <div class="stat">Length: <span id="stat-length">0</span></div>
+                <div class="stat">Essence (Run): <span id="stat-run-essence">0</span></div>
+                <div class="stat">Active Power-up: <span id="stat-active-powerup">None</span></div>
+                <hr style="border-color: #30363d; margin: 15px 0;">
+                <h3>Global Stats</h3>
+                <div class="stat">Total Essence: <span id="stat-total-essence">0</span></div>
+                <div class="stat">Highest Size Lvl: <span id="stat-high-size">0</span></div>
+                <h3>Debug Info</h3>
+                <div class="stat">X Position: <span id="debug-info-xpos">0</span></div>
+                <div class="stat">Y Position: <span id="debug-info-ypos">0</span></div>
+            </div>
+
+            <div class="ui-section" id="upgrades-section">
+                <h3>Permanent Enhancements</h3>
+            </div>
+
+            <div class="ui-section" id="prestige-section">
+                <h3>Meta-Progression</h3>
+                <div class="stat">Prestige Points: <span id="stat-prestige-points">0</span></div>
+                <div class="stat">Next Prestige Cost: <span id="prestige-cost">N/A</span> Essence</div>
+                <button id="btn-prestige" disabled>Prestige Now</button>
+                <div id="prestige-upgrades-section" style="margin-top:15px;">
+                    <h4>Prestige Perks</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="game.js"></script>
+</body>
+</html>
